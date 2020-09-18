@@ -38,6 +38,7 @@ executable client
     , country-codes
     , jsaddle
     , lib
+    , lifted-async
     , text
     , servant
     , servant-client-core

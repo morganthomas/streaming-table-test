@@ -14,6 +14,7 @@ module Main where
 import Prelude hiding (div, span)
 
 import Control.Arrow (first)
+import Control.Concurrent.Async.Lifted
 import Control.Concurrent.MVar
 import Control.Monad.IO.Class
 import Data.CountryCodes
@@ -32,7 +33,7 @@ import Shpadoinkle.Router.Client (ClientM, ClientEnv (..), client, runXHR', Base
 import Shpadoinkle.Widgets.Table
 import Shpadoinkle.Widgets.Table.Lazy
 import Shpadoinkle.Widgets.Types
-import Streamly
+import Streamly hiding (async)
 import qualified Streamly.Prelude as Streamly
 import qualified Streamly.Internal.Data.Fold.Types as Streamly
 
@@ -171,15 +172,14 @@ main = do
   let init = ((FilteredTable [] (TableFilters Nothing Set.empty), SortCol Name ASC), CurrentScrollY 0)
   model <- newTVarIO init
   runJSorWarp 8080 $ do
-    s <- Streamly.chunksOf 500 Streamly.toListRevF
-         <$> (runXHR' getPeople (ClientEnv (BaseUrl Http "localhost" 8081 ""))
-              >>= liftIO . streamSource)
     shpadoinkle Proxy id runParDiff init model (mainView ds) getBody
-    _ <- liftIO . forkIO . flip Streamly.mapM_ s $ \buf -> do
-      putStrLn "got buf"
-      atomically $ do
-        ((ft, sc), sy) <- readTVar model
-        writeTVar model $ ( ( ft { contents = contents ft ++ reverse buf }
-                            , sc )
-                          , sy )
+    _ <- async $ do
+     s <- Streamly.chunksOf 500 Streamly.toListRevF
+           <$> (runXHR' getPeople (ClientEnv (BaseUrl Http "localhost" 8081 ""))
+                >>= liftIO . streamSource)
+     liftIO . flip Streamly.mapM_ s $ \buf -> atomically $ do
+       ((ft, sc), sy) <- readTVar model
+       writeTVar model $ ( ( ft { contents = contents ft ++ reverse buf }
+                           , sc )
+                         , sy )
     return ()
