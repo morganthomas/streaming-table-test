@@ -174,7 +174,7 @@ main = do
   runJSorWarp 8080 $ do
     shpadoinkle Proxy id runParDiff init model (mainView ds) getBody
     _ <- async $ do
-     s <- Streamly.chunksOf 500 Streamly.toListRevF
+     s <- Streamly.chunksOf 100 Streamly.toListRevF
            <$> (runXHR' getPeople (ClientEnv (BaseUrl Http "localhost" 8081 ""))
                 >>= liftIO . streamSource)
      liftIO . flip Streamly.mapM_ s $ \buf -> atomically $ do

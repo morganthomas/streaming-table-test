@@ -3,6 +3,7 @@ module Server where
 
 import Data.Functor.Of
 import Data.Proxy
+import GHC.Conc
 import Network.Wai.Handler.Warp
 import Servant hiding (Stream)
 import Servant.Types.SourceT (SourceT (..), StepT (..))
@@ -19,7 +20,9 @@ numPeople = 10000
 
 
 arbitraryPerson :: IO Person
-arbitraryPerson = generate arbitrary
+arbitraryPerson = do
+  threadDelay 10000
+  generate arbitrary
 
 
 peopleStream :: Stream (Of Person) IO ()
