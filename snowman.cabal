@@ -26,6 +26,8 @@ executable server
    , QuickCheck
    , servant
    , servant-server
+   , streaming
+   , warp
   hs-source-dirs:      server
   default-language:    Haskell2010
 
@@ -51,8 +53,11 @@ library lib
   exposed-modules:     StockName
                        Types
   build-depends:       base ^>=4.12.0.0
+    , aeson
     , country-codes
     , text
     , QuickCheck
+    , servant
+    , servant-server
   hs-source-dirs:      lib
   default-language:    Haskell2010
