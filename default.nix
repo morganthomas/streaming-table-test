@@ -16,8 +16,22 @@ let
   # It's a shpadoinkle day
   shpadoinkle = if localShpadoinkle then ../Shpadoinkle else builtins.fetchGit {
     url    = https://gitlab.com/morganthomas/Shpadoinkle.git;
-    rev    = "a572f8effa0a2b9602abaaf15a024a53d7c8d465";
+    rev    = "2b0cf2872213da5c37f5e4009026aa2b78a6b54c";
     ref    = "develop";
+  };
+
+
+  fusion-plugin-types-src = builtins.fetchGit {
+    url   = https://github.com/composewell/fusion-plugin-types.git;
+    rev   = "1a7e1c39b4496543b2dc95d59aafbf44041554f1";
+    ref   = "v0.1.0";
+  };
+
+
+  streamly-src = builtins.fetchGit {
+    url   = https://github.com/composewell/streamly.git;
+    rev   = "30ddc28884d1068c75bcb6b865041e42ddd5e5de";
+    ref   = "v0.7.2";
   };
 
 
@@ -50,7 +64,11 @@ let
 
 
   # Haskell specific overlay (for you to extend)
-  haskell-overlay = hself: hsuper: { };
+  haskell-overlay = hself: hsuper: with pkgs.haskell.lib; {
+    streamly = hself.callCabal2nix "streamly" streamly-src {
+      fusion-plugin-types = hself.callCabal2nix "fusion-plugin-types" fusion-plugin-types-src {};
+    };
+  };
 
 
   # Top level overlay (for you to extend)

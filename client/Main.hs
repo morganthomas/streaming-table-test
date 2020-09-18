@@ -1,7 +1,9 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE TypeApplications  #-}
 {-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE ViewPatterns      #-}
 
@@ -12,18 +14,27 @@ module Main where
 import Prelude hiding (div, span)
 
 import Control.Arrow (first)
+import Control.Concurrent.MVar
+import Control.Monad.IO.Class
 import Data.CountryCodes
+import Data.Function (fix)
 import Data.Proxy
 import Data.Set (Set)
-import qualified Data.Set as S
-import Data.Text hiding (span)
+import qualified Data.Set as Set
+import Data.Text hiding (span, reverse)
+import GHC.Conc
 import Language.Javascript.JSaddle
-import Shpadoinkle hiding (name)
+import Servant.Types.SourceT
+import Shpadoinkle hiding (name, newTVarIO)
 import Shpadoinkle.Backend.ParDiff
 import Shpadoinkle.Html hiding (head, max)
+import Shpadoinkle.Router.Client (ClientM, ClientEnv (..), client, runXHR', BaseUrl (..), Scheme (Http))
 import Shpadoinkle.Widgets.Table
 import Shpadoinkle.Widgets.Table.Lazy
 import Shpadoinkle.Widgets.Types
+import Streamly
+import qualified Streamly.Prelude as Streamly
+import qualified Streamly.Internal.Data.Fold.Types as Streamly
 
 import Types
 
@@ -64,7 +75,7 @@ instance Tabular FilteredTable where
     where sexFilter = case bySex of
             Just s  -> sex p == s
             Nothing -> True
-          countryFilter = if S.null byOrigin then True else S.member (origin p) byOrigin
+          countryFilter = if Set.null byOrigin then True else Set.member (origin p) byOrigin
 
   sortTable (SortCol c s) (unRow -> a) (unRow -> b) =
     case c of
@@ -106,16 +117,16 @@ filterView m =
     originWidget :: Monad m => Model -> (CountryCode, Text) -> HtmlM m Model
     originWidget (tab, sc) (cc, cName) = div_ [
       input' [ ("type", "checkbox")
-             , checked $ S.member cc (byOrigin (filters tab))
+             , checked $ Set.member cc (byOrigin (filters tab))
              , onClickE (pur (toggleOriginFilter cc)) ],
       text cName ]
 
     toggleOriginFilter :: CountryCode -> Model -> Model
     toggleOriginFilter cc (tab, sc) =
-      if S.member cc (byOrigin (filters tab))
-      then ( tab { filters = (filters tab) { byOrigin = S.delete cc (byOrigin (filters tab)) } }
+      if Set.member cc (byOrigin (filters tab))
+      then ( tab { filters = (filters tab) { byOrigin = Set.delete cc (byOrigin (filters tab)) } }
            , sc )
-      else ( tab { filters = (filters tab) { byOrigin = S.insert cc (byOrigin (filters tab)) } }
+      else ( tab { filters = (filters tab) { byOrigin = Set.insert cc (byOrigin (filters tab)) } }
            , sc )
 
 
@@ -134,10 +145,41 @@ mainView debounceScroll (m@(tab, sc), sy) = div_ [
     container = div [("style", "max-height: 500px")] . (:[])
 
 
+getPeople :: ClientM (SourceT IO Person)
+getPeople = client (Proxy @Api)
+
+
+streamSource :: SourceT IO a -> IO (SerialT IO a)
+streamSource src = do
+  push <- newEmptyMVar
+  _ <- forkIO . unSourceT src . fix $ \go -> \case
+    Stop -> return ()
+    Error _ -> return ()
+    Skip rest -> go rest
+    Yield x rest -> do
+      putMVar push x
+      go rest
+    Effect m -> do
+      rest <- m
+      go rest
+  return $ Streamly.repeatM (takeMVar push)
+
+
 main :: IO ()
 main = do
-  ts <- debounceRaw 0.25
-  let init = ((FilteredTable [] (TableFilters Nothing S.empty), SortCol Name ASC), CurrentScrollY 0)
+  ds <- debounceRaw 0.25
+  let init = ((FilteredTable [] (TableFilters Nothing Set.empty), SortCol Name ASC), CurrentScrollY 0)
   model <- newTVarIO init
-  runJSorWarp 8080 $
-    shpadoinkle Proxy id runParDiff init model (mainView ts) getBody
+  runJSorWarp 8080 $ do
+    s <- Streamly.chunksOf 500 Streamly.toListRevF
+         <$> (runXHR' getPeople (ClientEnv (BaseUrl Http "localhost" 8081 ""))
+              >>= liftIO . streamSource)
+    shpadoinkle Proxy id runParDiff init model (mainView ds) getBody
+    _ <- liftIO . forkIO . flip Streamly.mapM_ s $ \buf -> do
+      putStrLn "got buf"
+      atomically $ do
+        ((ft, sc), sy) <- readTVar model
+        writeTVar model $ ( ( ft { contents = contents ft ++ reverse buf }
+                            , sc )
+                          , sy )
+    return ()

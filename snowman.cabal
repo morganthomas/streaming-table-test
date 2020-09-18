@@ -46,6 +46,7 @@ executable client
     , Shpadoinkle-html
     , Shpadoinkle-router
     , Shpadoinkle-widgets
+    , streamly >= 0.7
   hs-source-dirs:      client
   default-language:    Haskell2010
 
