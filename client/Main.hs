@@ -49,8 +49,10 @@ data TableFilters = TableFilters
 data FilteredTable = FilteredTable
                    { contents :: [Person]
                    , filters  :: TableFilters }
-  deriving (Eq, Show)
+  deriving (Show)
 
+instance Eq FilteredTable where
+  _ == _ = False
 
 instance LazyTabular FilteredTable where
   countRows _ = 10000
@@ -134,8 +136,8 @@ filterView m =
 mainView :: MonadJSM m => DebounceScroll m (LazyTable FilteredTable, SortCol (LazyTable FilteredTable))
          -> (Model, CurrentScrollY) -> HtmlM m (Model, CurrentScrollY)
 mainView debounceScroll (m@(tab, sc), sy) = div_ [
-    liftMC (first . const) fst $ filterView m,
-    lazyTable theme (AssumedTableHeight 500) (AssumedRowHeight 20) (TbodyIsScrollable debounceScroll) id tab sc sy
+    lazyTable theme (AssumedTableHeight 500) (AssumedRowHeight 20) (TbodyIsScrollable debounceScroll) id tab sc sy,
+    liftMC (first . const) fst $ filterView m
   ]
   where
     theme :: Theme m FilteredTable
