@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications  #-}
 
@@ -5,17 +6,31 @@
 module Types where
 
 
+import Control.Monad
 import Data.Aeson
 import Data.CountryCodes
 import Data.Text
+import GHC.Generics
+import Language.Javascript.JSaddle
 import Servant
 import Test.QuickCheck
+import qualified Data.Text as T
 
 import StockName
 
 
+instance ToJSVal CountryCode where
+  toJSVal = toJSVal . toText
+
+instance FromJSVal CountryCode where
+  fromJSVal val = join . fmap fromMText <$> fromJSVal val
+
+
 data Sex = Male | Female
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
+
+instance ToJSVal Sex
+instance FromJSVal Sex
 
 instance ToJSON Sex where
   toJSON Male = toJSON @Text "male"
@@ -32,7 +47,10 @@ data Person = Person
             , age    :: Int
             , sex    :: Sex
             , origin :: CountryCode }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance ToJSVal Person
+instance FromJSVal Person
 
 instance ToJSON Person where
   toJSON p = object [ "name" .= name p

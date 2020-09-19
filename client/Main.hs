@@ -161,7 +161,7 @@ main = do
   runJSorWarp 8080 $ do
     win <- jsg "window"
     shpadoinkle Proxy id runParDiff init model (mainView ds) getBody
-    worker <- eval "new Worker('http://localhost:8082/worker.js');"
+    worker <- eval "new Worker('http://localhost:8082/bin/worker.jsexe/all.js');"
     ready <- liftIO $ newTVarIO True
     _ <- async . forever $ do
       liftIO . atomically $ do
