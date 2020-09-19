@@ -65,9 +65,22 @@ let
 
   # Haskell specific overlay (for you to extend)
   haskell-overlay = hself: hsuper: with pkgs.haskell.lib; {
+    abstract-deque-tests = dontCheck hsuper.abstract-deque-tests;
+    bsb-http-chunked = dontCheck hsuper.bsb-http-chunked;
+    Glob = dontCheck hsuper.Glob;
+    http2 = dontCheck hsuper.http2;
+    http-date = dontCheck hsuper.http-date;
+    iproute = dontCheck hsuper.iproute;
+    network-byte-order = dontCheck hsuper.network-byte-order;
+    servant-server = dontCheck hsuper.servant-server;
+    streaming-commons = dontCheck hsuper.streaming-commons;
     streamly = hself.callCabal2nix "streamly" streamly-src {
       fusion-plugin-types = hself.callCabal2nix "fusion-plugin-types" fusion-plugin-types-src {};
     };
+    test-abstract-deque = dontCheck hsuper.test-abstract-deque;
+    unix-time = dontCheck hsuper.unix-time;
+    wai-app-static = dontCheck hsuper.wai-app-static;
+    wai-extra = dontCheck hsuper.wai-extra;
   };
 
 

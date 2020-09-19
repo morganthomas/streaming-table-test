@@ -15,42 +15,6 @@ maintainer:          morgan.thomas@platonic.systems
 -- category:
 extra-source-files:  CHANGELOG.md
 
-executable server
-  main-is:             Main.hs
-  -- other-extensions:
-  build-depends:       base ^>=4.12.0.0
-   , containers
-   , country-codes
-   , lib
-   , text
-   , QuickCheck
-   , servant
-   , servant-server
-   , streaming
-   , warp
-  hs-source-dirs:      server
-  default-language:    Haskell2010
-
-executable client
-  main-is:             Main.hs
-  build-depends:       base ^>=4.12.0.0
-    , containers
-    , country-codes
-    , jsaddle
-    , lib
-    , lifted-async
-    , text
-    , servant
-    , servant-client-core
-    , Shpadoinkle
-    , Shpadoinkle-backend-pardiff
-    , Shpadoinkle-html
-    , Shpadoinkle-router
-    , Shpadoinkle-widgets
-    , streamly >= 0.7
-  hs-source-dirs:      client
-  default-language:    Haskell2010
-
 library lib
   exposed-modules:     StockName
                        Types
@@ -62,4 +26,61 @@ library lib
     , servant
     , servant-server
   hs-source-dirs:      lib
+  default-language:    Haskell2010
+
+executable server
+  main-is:             Main.hs
+  -- other-extensions:
+  build-depends:       base ^>=4.12.0.0
+  if impl(ghcjs)
+  else
+   build-depends:
+     , containers
+     , country-codes
+     , lib
+     , text
+     , QuickCheck
+     , servant
+     , servant-server
+     , streaming
+     , warp
+  hs-source-dirs:      server
+  default-language:    Haskell2010
+
+executable client
+  main-is:             Main.hs
+  build-depends:       base ^>=4.12.0.0
+    , aeson
+    , containers
+    , country-codes
+    , jsaddle
+    , lib
+    , lifted-async
+    , QuickCheck
+    , servant
+    , servant-client-core
+    , servant-server
+    , Shpadoinkle
+    , Shpadoinkle-backend-pardiff
+    , Shpadoinkle-html
+    , Shpadoinkle-router
+    , Shpadoinkle-widgets
+    , streamly >= 0.7
+    , text
+  hs-source-dirs:      client
+                       lib
+  default-language:    Haskell2010
+
+executable worker
+  main-is:             Main.hs
+  build-depends:       base ^>=4.12.0.0
+    , containers
+    , country-codes
+    , jsaddle
+    , lib
+    , servant
+    , servant-client-core
+    , Shpadoinkle-router
+    , streamly >= 0.7
+  hs-source-dirs:      worker
   default-language:    Haskell2010

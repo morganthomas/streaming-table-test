@@ -1,5 +1,12 @@
-module Server where
+{-# LANGUAGE CPP #-}
 
+
+module Main where
+
+
+#ifdef ghcjs_HOST_OS
+main = putStrLn "server does not compile in ghcjs"
+#else
 
 import Data.Functor.Of
 import Data.Proxy
@@ -47,3 +54,5 @@ api = Proxy
 
 main :: IO ()
 main = run 8081 . serve api $ server
+
+#endif

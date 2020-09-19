@@ -1,11 +1,12 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE TypeApplications  #-}
-{-# LANGUAGE TypeFamilies      #-}
-{-# LANGUAGE ViewPatterns      #-}
+{-# LANGUAGE ExtendedDefaultRules #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE LambdaCase           #-}
+{-# LANGUAGE NoImplicitPrelude    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE RecordWildCards      #-}
+{-# LANGUAGE TypeApplications     #-}
+{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE ViewPatterns         #-}
 
 
 module Main where
@@ -16,9 +17,11 @@ import Prelude hiding (div, span)
 import Control.Arrow (first)
 import Control.Concurrent.Async.Lifted
 import Control.Concurrent.MVar
+import Control.Monad
 import Control.Monad.IO.Class
 import Data.CountryCodes
 import Data.Function (fix)
+import Data.Maybe
 import Data.Proxy
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -38,6 +41,8 @@ import qualified Streamly.Prelude as Streamly
 import qualified Streamly.Internal.Data.Fold.Types as Streamly
 
 import Types
+
+default (Text)
 
 
 data TableFilters = TableFilters
@@ -148,40 +153,28 @@ mainView debounceScroll (m@(tab, sc), sy) = div_ [
     container = div [("style", "max-height: 500px")] . (:[])
 
 
-getPeople :: ClientM (SourceT IO Person)
-getPeople = client (Proxy @Api)
-
-
-streamSource :: SourceT IO a -> IO (SerialT IO a)
-streamSource src = do
-  push <- newEmptyMVar
-  _ <- forkIO . unSourceT src . fix $ \go -> \case
-    Stop -> return ()
-    Error _ -> return ()
-    Skip rest -> go rest
-    Yield x rest -> do
-      putMVar push x
-      go rest
-    Effect m -> do
-      rest <- m
-      go rest
-  return $ Streamly.repeatM (takeMVar push)
-
-
 main :: IO ()
 main = do
   ds <- debounceRaw 0.25
   let init = ((FilteredTable [] (TableFilters Nothing Set.empty), SortCol Name ASC), CurrentScrollY 0)
   model <- newTVarIO init
   runJSorWarp 8080 $ do
+    win <- jsg "window"
     shpadoinkle Proxy id runParDiff init model (mainView ds) getBody
-    _ <- async $ do
-     s <- Streamly.chunksOf 100 Streamly.toListRevF
-           <$> (runXHR' getPeople (ClientEnv (BaseUrl Http "localhost" 8081 ""))
-                >>= liftIO . streamSource)
-     liftIO . flip Streamly.mapM_ s $ \buf -> atomically $ do
-       ((ft, sc), sy) <- readTVar model
-       writeTVar model $ ( ( ft { contents = contents ft ++ reverse buf }
-                           , sc )
-                         , sy )
-    return ()
+    worker <- eval "new Worker('http://localhost:8082/worker.js');"
+    ready <- liftIO $ newTVarIO True
+    _ <- async . forever $ do
+      liftIO . atomically $ do
+        isReady <- readTVar ready
+        if isReady
+          then writeTVar ready False
+          else retry
+      (win # "requestAnimationFrame") . (:[]) =<< toJSVal (fun (\_ _ _ ->
+        void $ worker # "postMessage" $ [jsNull]))
+    (worker <# "onmessage") . (:[]) =<< toJSVal (fun (\_ _ -> \case
+      [val] -> do
+        people <- fromMaybe [] <$> fromJSVal val
+        liftIO . atomically $ do
+          ((ft, sc), sy) <- readTVar model
+          writeTVar model ((ft { contents = contents ft ++ people }, sc), sy)
+          writeTVar ready True))
