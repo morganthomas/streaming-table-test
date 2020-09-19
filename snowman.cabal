@@ -57,9 +57,10 @@ library lib
   build-depends:       base ^>=4.12.0.0
     , aeson
     , country-codes
-    , text
+    , jsaddle
     , QuickCheck
     , servant
     , servant-server
+    , text
   hs-source-dirs:      lib
   default-language:    Haskell2010
