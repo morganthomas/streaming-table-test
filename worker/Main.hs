@@ -49,28 +49,22 @@ ioJSM _ = putStrLn "worker only runs in ghcjs"
 
 main :: IO ()
 main = ioJSM $ do
-  eval "console.log('in worker thread')"
   eval "window = self" -- HACK because don't know why ghcjs output references window
   self <- jsg "self"
   _ <- self # "postMessage" $ [jsNull]
   buf <- liftIO $ newTVarIO []
   _ <- async $ do
-    eval "console.log('in buffering thread')"
     s <- runXHR' getPeople (ClientEnv (BaseUrl Http "localhost" 8081 ""))
          >>= liftIO . streamSource
-    eval "console.log('beginning to buffer')"
     liftIO . flip Streamly.mapM_ s $ \row -> atomically $ do
       b <- readTVar buf
       writeTVar buf (row : b)
   (self <# "onmessage") =<< toJSVal (fun $ \_ _ _ -> do
-    eval "console.log('in onmessage handler')"
     rows <- fmap reverse . liftIO . atomically $ do
       b <- readTVar buf
       writeTVar buf []
       return b
-    eval "console.log('emptied buffer')"
     (self # "postMessage") . (:[]) =<< toJSVal rows
-    eval "console.log('posted response')"
     return ())
   rows <- liftIO . atomically $ do
     b <- readTVar buf
