@@ -162,33 +162,38 @@ main = do
     win <- jsg "window"
     ready <- newEmptyMVar
     eval "console.log('created ready mvar')"
-    worker <- eval "new Worker('http://localhost:8082/bin/worker.jsexe/all.js');"
+    workerCtor <- jsg "Worker"
+    workerSrc <- toJSVal "http://localhost:8082/bin/worker.jsexe/all.js"
+    worker <- new workerCtor [workerSrc]
     eval "console.log('created worker')"
-    (worker <# "onmessage") =<< toJSVal (fun (\_ _ -> \case
-      [val] -> do
-        eval "console.log('received worker message')"
-        console <- jsg "console"
-        console # "log" $ [val]
-        people <- fromMaybe [] <$> (fromJSVal =<< (val ! "data"))
-        eval "console.log('extracted people object')"
-        liftIO . atomically $ do
-          ((ft, sc), sy) <- readTVar model
-          writeTVar model ((ft { contents = contents ft ++ people }, sc), sy)
-        eval "console.log('updated state')"
-        putMVar ready ()
-        return ()))
-    eval "console.log('attached onmessage handler to worker')"
-    _ <- async . forever $ do
-      _ <- takeMVar ready
-      (win # "requestAnimationFrame") . (:[]) =<< toJSVal (fun (\_ _ _ -> do
-        eval "console.log('requesting buffer flush')"
-        void $ worker # "postMessage" $ [jsNull]))
-      return ()
-    eval "console.log('created buffer flush event loop')"
-    _ <- async $ do
-      shpadoinkle Proxy id runParDiff init model (mainView ds) getBody
-      eval "console.log('shpadoinkled')"
-      return ()
-    eval "console.log('kicked off shpadoinkle')"
-    putMVar ready ()
+    (worker <# "onmessage") =<< toJSVal (fun (\_ _ _ -> do
+      (worker <# "onmessage") =<< toJSVal (fun (\_ _ -> \case
+        [val] -> do
+          eval "console.log('received worker message')"
+          console <- jsg "console"
+          console # "log" $ [val]
+          people <- fromMaybe [] <$> (fromJSVal =<< (val ! "data"))
+          eval "console.log('extracted people object')"
+          liftIO . atomically $ do
+            ((ft, sc), sy) <- readTVar model
+            writeTVar model ((ft { contents = contents ft ++ people }, sc), sy)
+          eval "console.log('updated state')"
+          putMVar ready ()
+          return ()))
+      eval "console.log('attached onmessage handler to worker')"
+      _ <- async . forever $ do
+        _ <- takeMVar ready
+        (win # "requestAnimationFrame") . (:[]) =<< toJSVal (fun (\_ _ _ -> do
+          eval "console.log('requesting buffer flush')"
+          void $ worker # "postMessage" $ [jsNull]
+          eval "console.log('requested buffer flush')"
+          return ()))
+        return ()
+      eval "console.log('created buffer flush event loop')"
+      _ <- async $ do
+        shpadoinkle Proxy id runParDiff init model (mainView ds) getBody
+        eval "console.log('shpadoinkled')"
+        return ()
+      eval "console.log('kicked off shpadoinkle')"
+      putMVar ready ()))
     return ()

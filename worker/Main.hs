@@ -52,6 +52,7 @@ main = ioJSM $ do
   eval "console.log('in worker thread')"
   eval "window = self" -- HACK because don't know why ghcjs output references window
   self <- jsg "self"
+  _ <- self # "postMessage" $ [jsNull]
   buf <- liftIO $ newTVarIO []
   _ <- async $ do
     eval "console.log('in buffering thread')"
