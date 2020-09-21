@@ -160,8 +160,8 @@ main = do
   model <- newTVarIO init
   runJSorWarp 8080 $ do
     win <- jsg "window"
-    ready <- liftIO $ newTVarIO False
-    eval "console.log('created ready tvar')"
+    ready <- newEmptyMVar
+    eval "console.log('created ready mvar')"
     worker <- eval "new Worker('http://localhost:8082/bin/worker.jsexe/all.js');"
     eval "console.log('created worker')"
     (worker <# "onmessage") =<< toJSVal (fun (\_ _ -> \case
@@ -174,20 +174,15 @@ main = do
         liftIO . atomically $ do
           ((ft, sc), sy) <- readTVar model
           writeTVar model ((ft { contents = contents ft ++ people }, sc), sy)
-          writeTVar ready True
         eval "console.log('updated state')"
+        putMVar ready ()
         return ()))
     eval "console.log('attached onmessage handler to worker')"
     _ <- async . forever $ do
-      liftIO . atomically $ do
-        isReady <- readTVar ready
-        if isReady
-          then return ()
-          else retry
+      _ <- takeMVar ready
       (win # "requestAnimationFrame") . (:[]) =<< toJSVal (fun (\_ _ _ -> do
         eval "console.log('requesting buffer flush')"
         void $ worker # "postMessage" $ [jsNull]))
-      liftIO . atomically $ writeTVar ready False
       return ()
     eval "console.log('created buffer flush event loop')"
     _ <- async $ do
@@ -195,4 +190,5 @@ main = do
       eval "console.log('shpadoinkled')"
       return ()
     eval "console.log('kicked off shpadoinkle')"
+    putMVar ready ()
     return ()
