@@ -160,21 +160,39 @@ main = do
   model <- newTVarIO init
   runJSorWarp 8080 $ do
     win <- jsg "window"
-    shpadoinkle Proxy id runParDiff init model (mainView ds) getBody
+    ready <- liftIO $ newTVarIO False
+    eval "console.log('created ready tvar')"
     worker <- eval "new Worker('http://localhost:8082/bin/worker.jsexe/all.js');"
-    ready <- liftIO $ newTVarIO True
+    eval "console.log('created worker')"
+    (worker <# "onmessage") =<< toJSVal (fun (\_ _ -> \case
+      [val] -> do
+        eval "console.log('received worker message')"
+        console <- jsg "console"
+        console # "log" $ [val]
+        people <- fromMaybe [] <$> (fromJSVal =<< (val ! "data"))
+        eval "console.log('extracted people object')"
+        liftIO . atomically $ do
+          ((ft, sc), sy) <- readTVar model
+          writeTVar model ((ft { contents = contents ft ++ people }, sc), sy)
+          writeTVar ready True
+        eval "console.log('updated state')"
+        return ()))
+    eval "console.log('attached onmessage handler to worker')"
     _ <- async . forever $ do
       liftIO . atomically $ do
         isReady <- readTVar ready
         if isReady
-          then writeTVar ready False
+          then return ()
           else retry
-      (win # "requestAnimationFrame") . (:[]) =<< toJSVal (fun (\_ _ _ ->
+      (win # "requestAnimationFrame") . (:[]) =<< toJSVal (fun (\_ _ _ -> do
+        eval "console.log('requesting buffer flush')"
         void $ worker # "postMessage" $ [jsNull]))
-    (worker <# "onmessage") . (:[]) =<< toJSVal (fun (\_ _ -> \case
-      [val] -> do
-        people <- fromMaybe [] <$> fromJSVal val
-        liftIO . atomically $ do
-          ((ft, sc), sy) <- readTVar model
-          writeTVar model ((ft { contents = contents ft ++ people }, sc), sy)
-          writeTVar ready True))
+      liftIO . atomically $ writeTVar ready False
+      return ()
+    eval "console.log('created buffer flush event loop')"
+    _ <- async $ do
+      shpadoinkle Proxy id runParDiff init model (mainView ds) getBody
+      eval "console.log('shpadoinkled')"
+      return ()
+    eval "console.log('kicked off shpadoinkle')"
+    return ()
