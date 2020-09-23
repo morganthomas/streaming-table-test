@@ -160,7 +160,7 @@ main = do
   model <- newTVarIO init
   runJSorWarp 8080 $ do
     win <- jsg "window"
-    ready <- newEmptyMVar
+    ready <- liftIO newEmptyMVar
     workerCtor <- jsg "Worker"
     workerSrc <- toJSVal "http://localhost:8082/bin/worker.jsexe/all.js"
     worker <- new workerCtor [workerSrc]
@@ -171,10 +171,10 @@ main = do
           liftIO . atomically $ do
             ((ft, sc), sy) <- readTVar model
             writeTVar model ((ft { contents = contents ft ++ people }, sc), sy)
-          putMVar ready ()
+          liftIO $ putMVar ready ()
           return ()))
       _ <- async . forever $ do
-        _ <- takeMVar ready
+        _ <- liftIO $ takeMVar ready
         (win # "requestAnimationFrame") . (:[]) =<< toJSVal (fun (\_ _ _ -> do
           void $ worker # "postMessage" $ [jsNull]
           return ()))
@@ -182,5 +182,5 @@ main = do
       _ <- async $ do
         shpadoinkle Proxy id runParDiff init model (mainView ds) getBody
         return ()
-      putMVar ready ()))
+      liftIO $ putMVar ready ()))
     return ()
