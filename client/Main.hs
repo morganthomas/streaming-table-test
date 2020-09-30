@@ -31,7 +31,7 @@ import Language.Javascript.JSaddle
 import Servant.Types.SourceT
 import Shpadoinkle hiding (name, newTVarIO)
 import Shpadoinkle.Backend.ParDiff
-import Shpadoinkle.Html hiding (head, max)
+import Shpadoinkle.Html hiding (head, max, name)
 import Shpadoinkle.Router.Client (ClientM, ClientEnv (..), client, runXHR', BaseUrl (..), Scheme (Http))
 import Shpadoinkle.Widgets.Table
 import Shpadoinkle.Widgets.Table.Lazy
@@ -60,7 +60,7 @@ instance Eq FilteredTable where
   _ == _ = False
 
 instance LazyTabular FilteredTable where
-  countRows _ = 10000
+  countRows _ = 100000
 
 
 data instance Row FilteredTable = PersonRow { unRow :: Person }
@@ -101,16 +101,16 @@ instance Tabular FilteredTable where
 type Model = (FilteredTable, SortCol FilteredTable)
 
 
-filterView :: Monad m => Model -> HtmlM m Model
+filterView :: Monad m => Model -> Html m Model
 filterView m =
   div_ [
     div_ [
       text "Filter by sex: ",
-      span [ onClickE (pur (setSexFilter (Just Male))) ] [ "Male" ],
+      span [ onClickC (pur (setSexFilter (Just Male))) ] [ "Male" ],
       text " / ",
-      span [ onClickE (pur (setSexFilter (Just Female))) ] [ "Female" ],
+      span [ onClickC (pur (setSexFilter (Just Female))) ] [ "Female" ],
       text " / ",
-      span [ onClickE (pur (setSexFilter Nothing)) ] [ "Either" ]
+      span [ onClickC (pur (setSexFilter Nothing)) ] [ "Either" ]
     ],
     div_ [
       text "Filter by country of origin:",
@@ -122,11 +122,11 @@ filterView m =
     setSexFilter :: Maybe Sex -> Model -> Model
     setSexFilter f (tab, sc) = (tab { filters = (filters tab) { bySex = f } }, sc)
 
-    originWidget :: Monad m => Model -> (CountryCode, Text) -> HtmlM m Model
+    originWidget :: Monad m => Model -> (CountryCode, Text) -> Html m Model
     originWidget (tab, sc) (cc, cName) = div_ [
       input' [ ("type", "checkbox")
              , checked $ Set.member cc (byOrigin (filters tab))
-             , onClickE (pur (toggleOriginFilter cc)) ],
+             , onClickC (pur (toggleOriginFilter cc)) ],
       text cName ]
 
     toggleOriginFilter :: CountryCode -> Model -> Model
@@ -139,17 +139,17 @@ filterView m =
 
 
 mainView :: MonadJSM m => DebounceScroll m (LazyTable FilteredTable, SortCol (LazyTable FilteredTable))
-         -> (Model, CurrentScrollY) -> HtmlM m (Model, CurrentScrollY)
+         -> (Model, CurrentScrollY) -> Html m (Model, CurrentScrollY)
 mainView debounceScroll (m@(tab, sc), sy) = div_ [
     lazyTable theme (AssumedTableHeight 500) (AssumedRowHeight 20) (TbodyIsScrollable debounceScroll) id tab sc sy,
-    liftMC (first . const) fst $ filterView m
+    liftC (first . const) fst $ filterView m
   ]
   where
     theme :: Theme m FilteredTable
     theme = mempty { bodyProps = const $ const [("style", "display: block; overflow: auto; height: 500px;")]
                    , headProps = const $ const [("style", "display: block;")] }
 
-    container :: Monad m => HtmlM m a -> HtmlM m a
+    container :: Monad m => Html m a -> Html m a
     container = div [("style", "max-height: 500px")] . (:[])
 
 
@@ -180,7 +180,7 @@ main = do
           return ()))
         return ()
       _ <- async $ do
-        shpadoinkle Proxy id runParDiff init model (mainView ds) getBody
+        shpadoinkle id runParDiff init model (mainView ds) getBody
         return ()
       liftIO $ putMVar ready ()))
     return ()

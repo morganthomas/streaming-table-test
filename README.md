@@ -19,7 +19,7 @@ Main> main
 Run worker server on port 8082:
 
 ```
-$ nix-build
+$ nix-build --arg isJS true
 $ ./static-server.sh
 ```
 
