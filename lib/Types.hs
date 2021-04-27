@@ -6,6 +6,7 @@
 module Types where
 
 
+import Control.DeepSeq (NFData)
 import Control.Monad
 import Data.Aeson
 import Data.CountryCodes
@@ -31,6 +32,7 @@ data Sex = Male | Female
 
 instance ToJSVal Sex
 instance FromJSVal Sex
+instance NFData Sex
 
 instance ToJSON Sex where
   toJSON Male = toJSON @Text "male"
@@ -51,6 +53,7 @@ data Person = Person
 
 instance ToJSVal Person
 instance FromJSVal Person
+instance NFData Person
 
 instance ToJSON Person where
   toJSON p = object [ "name" .= name p

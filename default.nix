@@ -15,9 +15,9 @@ let
 
   # It's a shpadoinkle day
   shpadoinkle = if localShpadoinkle then ../Shpadoinkle else builtins.fetchGit {
-    url    = https://gitlab.com/morganthomas/Shpadoinkle.git;
-    rev    = "7597ef8731eebdbe898d4b78db51b9db9e33198c";
-    ref    = "servant-client-js";
+    url    = https://gitlab.com/platonic/Shpadoinkle.git;
+    rev    = "8ac480f78e0fa8d75d9335dc1e1eed2aa4f9efd4";
+    ref    = "master";
   };
 
 
@@ -46,7 +46,7 @@ let
 
 
   # Get some utilities
-  inherit (import (shpadoinkle + "/nix/util.nix") { inherit compiler isJS; }) compilerjs gitignore;
+  inherit (import (shpadoinkle + "/nix/util.nix") { inherit compiler isJS pkgs; }) compilerjs gitignore;
 
 
   # Build faster by doing less
@@ -60,7 +60,7 @@ let
   # Overlay containing Shpadoinkle packages, and needed alterations for those packages
   # as well as optimizations from Reflex Platform
   shpadoinkle-overlay =
-    import (shpadoinkle + "/nix/overlay.nix") { inherit compiler isJS; };
+    import (shpadoinkle + "/nix/overlay.nix") { inherit compiler isJS chan enableLibraryProfiling enableExecutableProfiling; };
 
 
   # Haskell specific overlay (for you to extend)

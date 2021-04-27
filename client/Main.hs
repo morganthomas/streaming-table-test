@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE LambdaCase           #-}
@@ -26,13 +27,14 @@ import Data.Proxy
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text hiding (span, reverse)
-import GHC.Conc
+import GHC.Generics
 import Language.Javascript.JSaddle
 import Servant.Types.SourceT
-import Shpadoinkle hiding (name, newTVarIO)
+import Shpadoinkle
 import Shpadoinkle.Backend.ParDiff
 import Shpadoinkle.Html hiding (head, max, name)
 import Shpadoinkle.Router.Client (ClientM, ClientEnv (..), client, runXHR', BaseUrl (..), Scheme (Http))
+import Shpadoinkle.Run (runJSorWarp)
 import Shpadoinkle.Widgets.Table
 import Shpadoinkle.Widgets.Table.Lazy
 import Shpadoinkle.Widgets.Types
@@ -48,16 +50,17 @@ default (Text)
 data TableFilters = TableFilters
                   { bySex :: Maybe Sex
                   , byOrigin :: Set CountryCode }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance NFData TableFilters
 
 
 data FilteredTable = FilteredTable
                    { contents :: [Person]
                    , filters  :: TableFilters }
-  deriving (Show)
+  deriving (Eq, Show, Generic)
 
-instance Eq FilteredTable where
-  _ == _ = False
+instance NFData FilteredTable
 
 instance LazyTabular FilteredTable where
   countRows _ = 100000
@@ -67,7 +70,9 @@ data instance Row FilteredTable = PersonRow { unRow :: Person }
 
 
 data instance Column FilteredTable = Name | Age | Sex | Origin
-  deriving (Eq, Ord, Show, Bounded, Enum)
+  deriving (Eq, Ord, Show, Bounded, Enum, Generic)
+
+instance NFData (Column FilteredTable)
 
 
 instance Humanize (Column FilteredTable) where
@@ -180,7 +185,7 @@ main = do
           return ()))
         return ()
       _ <- async $ do
-        shpadoinkle id runParDiff init model (mainView ds) getBody
+        shpadoinkle id runParDiff model (mainView ds) getBody
         return ()
       liftIO $ putMVar ready ()))
     return ()
