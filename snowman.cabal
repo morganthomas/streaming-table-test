@@ -82,6 +82,7 @@ executable worker
     , aeson
     , containers
     , country-codes
+    , deepseq
     , jsaddle
     , lib
     , lifted-async

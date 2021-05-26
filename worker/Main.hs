@@ -51,11 +51,17 @@ main :: IO ()
 main = ioJSM $ do
   eval "window = self" -- HACK because don't know why ghcjs output references window
   self <- jsg "self"
+  console <- jsg "console"
   _ <- self # "postMessage" $ [jsNull]
   buf <- liftIO $ newTVarIO []
   _ <- async $ do
-    s <- runXHR' getPeople (ClientEnv (BaseUrl Http "localhost" 8081 ""))
-         >>= liftIO . streamSource
+    peopleRes <- runXHRe getPeople (ClientEnv (BaseUrl Http "localhost" 8081 ""))
+    s' <- case peopleRes of
+      Left e -> do
+        console # "log" =<< toJSVal ("getPeople failed: " <> show e)
+        error ("getPeople failed: " <> show e)
+      Right s' -> return s'
+    s <- liftIO . streamSource $ s'
     liftIO . flip Streamly.mapM_ s $ \row -> atomically $ do
       b <- readTVar buf
       writeTVar buf (row : b)

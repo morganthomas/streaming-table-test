@@ -16,8 +16,8 @@ let
   # It's a shpadoinkle day
   shpadoinkle = if localShpadoinkle then ../Shpadoinkle else builtins.fetchGit {
     url    = https://gitlab.com/platonic/Shpadoinkle.git;
-    rev    = "8ac480f78e0fa8d75d9335dc1e1eed2aa4f9efd4";
-    ref    = "master";
+    rev    = "dbf63bee98a8944e1c6b3c6de832307f87c70af0";
+    ref    = "network-error-handling-2";
   };
 
 
@@ -74,9 +74,9 @@ let
     network-byte-order = dontCheck hsuper.network-byte-order;
     servant-server = dontCheck hsuper.servant-server;
     streaming-commons = dontCheck hsuper.streaming-commons;
-    streamly = hself.callCabal2nix "streamly" streamly-src {
+    streamly = dontCheck (hself.callCabal2nix "streamly" streamly-src {
       fusion-plugin-types = hself.callCabal2nix "fusion-plugin-types" fusion-plugin-types-src {};
-    };
+    });
     test-abstract-deque = dontCheck hsuper.test-abstract-deque;
     unix-time = dontCheck hsuper.unix-time;
     wai-app-static = dontCheck hsuper.wai-app-static;

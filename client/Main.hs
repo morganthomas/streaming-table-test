@@ -28,7 +28,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text hiding (span, reverse)
 import GHC.Generics
-import Language.Javascript.JSaddle
+import Language.Javascript.JSaddle hiding (MonadJSM)
 import Servant.Types.SourceT
 import Shpadoinkle
 import Shpadoinkle.Backend.ParDiff
